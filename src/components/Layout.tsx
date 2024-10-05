@@ -7,9 +7,8 @@ interface LayoutProps {
 }
 
 const Layout = ({ children }: LayoutProps) => {
-    const router = useRouter();
-
-       return (
+    useRouter();
+    return (
         <div className="flex flex-col h-screen bg-black text-white">
             <AppBar />
             <div className="flex flex-1">
