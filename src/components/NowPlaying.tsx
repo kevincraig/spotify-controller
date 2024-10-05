@@ -1,101 +1,94 @@
-import React, {useState, useEffect, useCallback} from 'react';
-import PlaybackControls from '@/components/PlaybackControls';
-import DeviceInfo from '@/components/DeviceInfo';
-import TrackTimeBar from '@/components/TrackTimeBar';
-import TrackInfo from '@/components/TrackInfo';
-import {fetchAccessToken, fetchLikedStatus, fetchPlaybackState} from '@/utils/spotifyApi';
+// src/components/NowPlaying.tsx
 
-import {NowPlayingProps} from '@/types';
-import {Episode, Track} from "@spotify/web-api-ts-sdk";
+import {useState, useEffect, useCallback} from 'react';
+import {getCurrentTrack} from '@/utils/spotifyService';
+import {useSpotifyAuth} from '@/hooks/useSpotifyAuth';
+import Image from 'next/image';
 
-const LOGO_PATH = '/images/spotify_full_logo_rgb_white.png';
-const NowPlaying = ({item, isPlaying, className = '', sdk, device}: NowPlayingProps): React.ReactElement | null => {
-    const [accessToken, setAccessToken] = useState<string | null>(null);
-    const [isLiked, setIsLiked] = useState<boolean>(false);
-    const [progress, setProgress] = useState<number>(0);
-    const [duration, setDuration] = useState<number>(0);
+interface Track {
+    name: string;
+    artist: string;
+    album: string;
+    albumArt: string;
+    isPlaying: boolean;
+}
+
+const NowPlaying = () => {
+    const {spotifyApi, isAuthenticated, isLoading, error: authError, login} = useSpotifyAuth();
+    const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
     const [error, setError] = useState<string | null>(null);
-    const [currentItem, setCurrentItem] = useState<Track | Episode | null>(null);
 
-    const fetchToken = useCallback(async () => {
+    const fetchTrack = useCallback(async () => {
+        if (!spotifyApi || !isAuthenticated) return;
+
         try {
-            const token = await fetchAccessToken(sdk);
-            setAccessToken(token);
+            const track = await getCurrentTrack(spotifyApi);
+            setCurrentTrack(track);
         } catch (err) {
-            setError("Failed to fetch access token");
+            setError('Failed to fetch current track');
             console.error(err);
         }
-    }, [sdk]);
-
-    const fetchLikeStatus = useCallback(async () => {
-        if (item && accessToken) {
-            try {
-                const liked = await fetchLikedStatus(accessToken, item.id);
-                console.log(`Fetched like status for track ${item.id}: ${liked}`);
-                setIsLiked(liked);
-            } catch (err) {
-                setError("Failed to fetch like status");
-                console.error(err);
-            }
-        }
-    }, [item, accessToken]);
-
-    const fetchState = useCallback(async () => {
-        if (accessToken) {
-            try {
-                const data = await fetchPlaybackState(accessToken);
-                if (data && data.item && data.progress_ms && data.item.duration_ms) {
-                    setProgress(data.progress_ms);
-                    setDuration(data.item.duration_ms);
-                }
-            } catch (err) {
-                setError("Failed to fetch playback state");
-                console.error(err);
-            }
-        }
-    }, [accessToken]);
+    }, [spotifyApi, isAuthenticated]);
 
     useEffect(() => {
-        fetchToken();
-    }, [fetchToken]);
-
-    useEffect(() => {
-        if (!currentItem || currentItem.id !== item?.id) {
-            setCurrentItem(item);
-            fetchLikeStatus();
+        if (isAuthenticated) {
+            fetchTrack();
+            const interval = setInterval(fetchTrack, 30000); // Fetch every 30 seconds
+            return () => clearInterval(interval);
         }
+    }, [isAuthenticated, fetchTrack]);
 
-        if (item && accessToken) {
-            console.log(`Track changed or accessToken updated. Fetching like status for track ${item.id}`);
-            fetchLikeStatus();
-        }
-    }, [item, accessToken, fetchLikeStatus, currentItem]);
+    if (isLoading) {
+        return <div className="text-center py-4">Initializing Spotify...</div>;
+    }
 
-    useEffect(() => {
-        fetchState();
-        const interval = setInterval(fetchState, 1000);
-        return () => clearInterval(interval);
-    }, [fetchState]);
+    if (authError) {
+        return <div className="text-red-500 text-center py-4">Error: {authError.message}</div>;
+    }
 
-    const formatTime = useCallback((ms: number): string => {
-        const minutes = Math.floor(ms / 60000);
-        const seconds = Math.floor((ms % 60000) / 1000);
-        return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
-    }, []);
+    if (!isAuthenticated) {
+        return (
+            <div className="flex flex-col items-center justify-center h-screen bg-gray-900 text-white">
+                <h1 className="text-3xl font-bold mb-4">Connect to Spotify</h1>
+                <button
+                    onClick={login}
+                    className="px-6 py-3 bg-green-500 text-white rounded-full font-bold hover:bg-green-600 transition duration-300"
+                >
+                    Login with Spotify
+                </button>
+            </div>
+        );
+    }
 
-    if (!item || !accessToken) return null;
+    if (error) {
+        return <div className="text-red-500 text-center py-4">Error: {error}</div>;
+    }
+
+    if (!currentTrack) {
+        return <div className="text-center py-4">No track currently playing</div>;
+    }
 
     return (
-        <div className={className} style={{width: '50vw'}} role="region" aria-label="Now Playing">
-            {error && <div role="alert" className="error-message">{error}</div>}
-            <TrackInfo item={item} isLiked={isLiked} accessToken={accessToken} logo={LOGO_PATH}>
-                <DeviceInfo deviceType={device?.type || ""} deviceName={device?.name || ""}/>
-                <PlaybackControls sdk={sdk} isPlaying={isPlaying} deviceId={device?.id || ""}/>
-                <TrackTimeBar initialProgress={progress} duration={duration} isPlaying={isPlaying}
-                              formatTime={formatTime}/>
-            </TrackInfo>
+        <div className="flex text-white w-full">
+            <div className="relative w-96 h-96 mb-4">
+                <Image
+                    src={currentTrack.albumArt}
+                    alt={`${currentTrack.album} cover`}
+                    width={325}
+                    height={325}
+                    className="rounded-lg"
+                />
+            </div>
+            <div className="flex flex-col px-0">
+                <h1 className="text-4xl font-bold mb-2">{currentTrack.name}</h1>
+                <p className="text-lg mb-1">{currentTrack.artist}</p>
+                <p className="text-sm text-gray-400 mb-2">{currentTrack.album}</p>
+                <p className="text-sm font-semibold">
+                    {currentTrack.isPlaying ? 'Now Playing' : 'Paused'}
+                </p>
+            </div>
         </div>
     );
-}
+};
 
 export default NowPlaying;

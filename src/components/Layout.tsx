@@ -1,19 +1,18 @@
-import React, { ReactNode } from 'react';
-import { useRouter } from 'next/router';
+// src/components/Layout.tsx
+
 import AppBar from './AppBar';
 
 interface LayoutProps {
-    children: ReactNode;
+    children: React.ReactNode;
 }
 
-const Layout = ({ children }: LayoutProps) => {
-    useRouter();
+const Layout = ({children}: LayoutProps) => {
     return (
-        <div className="flex flex-col h-screen bg-black text-white">
-            <AppBar />
-            <div className="flex flex-1">
-                <main className="flex-1 overflow-y-auto">{children}</main>
-            </div>
+        <div className="flex flex-col bg-black min-h-screen min-w-full">
+            <AppBar/>
+            <main className="flex-grow">
+                {children}
+            </main>
         </div>
     );
 };

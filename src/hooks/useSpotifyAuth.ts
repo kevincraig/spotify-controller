@@ -1,50 +1,59 @@
-import { useState, useEffect } from 'react';
-import { SpotifyApi } from '@spotify/web-api-ts-sdk';
+// src/hooks/useSpotifyAuth.ts
 
-const CLIENT_ID = process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_ID;
-const REDIRECT_URI = process.env.NEXT_PUBLIC_SPOTIFY_REDIRECT_URI; // Update this for production
-
-if (!CLIENT_ID || !REDIRECT_URI) {
-    throw new Error('Missing environment variables: NEXT_PUBLIC_SPOTIFY_CLIENT_ID or NEXT_PUBLIC_SPOTIFY_REDIRECT_URI');
-}
+import {useState, useEffect, useCallback} from 'react';
+import {initializeSpotify, authenticateSpotify, loginToSpotify} from '@/utils/spotifyService';
+import {SpotifyApi} from '@spotify/web-api-ts-sdk';
 
 export const useSpotifyAuth = () => {
-    const [sdk, setSdk] = useState<SpotifyApi | null>(null);
+    const [state, setState] = useState({
+        spotifyApi: null as SpotifyApi | null,
+        isAuthenticated: false,
+        isLoading: true,
+        error: null as Error | null
+    });
 
-    useEffect(() => {
-        const initializeSdk = async () => {
-            const sdk = SpotifyApi.withUserAuthorization(
-                CLIENT_ID,
-                REDIRECT_URI,
-                [
-                    'user-read-private',
-                    'user-read-email',
-                    'user-modify-playback-state',
-                    'user-read-playback-state',
-                    'user-library-read',
-                    'user-library-modify',
-                    'playlist-read-private',
-                    'playlist-modify-public',
-                    'playlist-modify-private',
-                ]
+    const initialize = useCallback(async () => {
+        try {
+            const api = await initializeSpotify(
+                process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_ID!,
+                process.env.NEXT_PUBLIC_SPOTIFY_REDIRECT_URI!
             );
-
-            try {
-                await sdk.authenticate();
-                setSdk(sdk);
-            } catch (error) {
-                console.error('Authentication failed:', error);
-            }
-        };
-
-        initializeSdk();
+            const authResult = await authenticateSpotify(api);
+            setState(prevState => ({
+                ...prevState,
+                spotifyApi: api,
+                isAuthenticated: authResult,
+                isLoading: false
+            }));
+        } catch (err) {
+            setState(prevState => ({
+                ...prevState,
+                error: err instanceof Error ? err : new Error('Failed to initialize Spotify'),
+                isLoading: false
+            }));
+        }
     }, []);
 
-    const login = () => {
-        if (sdk) {
-            sdk.authenticate();
-        }
-    };
+    useEffect(() => {
+        initialize();
+    }, [initialize]);
 
-    return { sdk, login };
+    const login = useCallback(async () => {
+        if (state.spotifyApi) {
+            setState(prevState => ({...prevState, isLoading: true}));
+            try {
+                await loginToSpotify(state.spotifyApi);
+                // The page will redirect to Spotify for authentication,
+                // so we don't need to update the state here
+            } catch (err) {
+                setState(prevState => ({
+                    ...prevState,
+                    error: err instanceof Error ? err : new Error('Failed to authenticate with Spotify'),
+                    isLoading: false
+                }));
+            }
+        }
+    }, [state.spotifyApi]);
+
+    return {...state, login};
 };
