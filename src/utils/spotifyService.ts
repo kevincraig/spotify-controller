@@ -1,6 +1,4 @@
-// src/utils/spotifyService.ts
-
-import {SpotifyApi} from '@spotify/web-api-ts-sdk';
+import {SpotifyApi, Track} from '@spotify/web-api-ts-sdk';
 
 let spotifyApi: SpotifyApi | null = null;
 
@@ -36,11 +34,12 @@ export const getCurrentTrack = async (api: SpotifyApi) => {
     try {
         const response = await api.player.getCurrentlyPlayingTrack();
         if (response && response.item && response.item.type === 'track') {
+            const track = response.item as Track;
             return {
-                name: response.item.name,
-                artist: response.item.artists[0].name,
-                album: response.item.album.name,
-                albumArt: response.item.album.images[0]?.url,
+                name: track.name,
+                artist: track.artists[0].name,
+                album: track.album.name,
+                albumArt: track.album.images[0]?.url,
                 isPlaying: response.is_playing
             };
         }

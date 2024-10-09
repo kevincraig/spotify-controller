@@ -1,121 +1,66 @@
-import React, {useState, useEffect} from 'react';
-// import { CirclePlay, CirclePause, SkipBack, SkipForward, Shuffle, Repeat } from 'lucide-react';
-// import { LuMonitorSpeaker } from "react-icons/lu";
-import {FaCirclePlay, FaCirclePause, FaBackwardStep, FaForwardStep} from 'react-icons/fa6';
-import {PlaybackControlsProps} from "@/types";
-import {fetchAccessToken, toggleShuffle, toggleRepeat, fetchPlaybackState} from '@/utils/spotifyApi';
-import {FaRepeat, FaShuffle} from "react-icons/fa6";
+// src/components/PlaybackControls.tsx
 
-const PlaybackControls = ({sdk, isPlaying, deviceId}: PlaybackControlsProps) => {
-    const [shuffle, setShuffle] = useState<boolean>(false);
-    const [repeat, setRepeat] = useState<'off' | 'context' | 'track'>('off');
-    const iconSize = 36;
+import React from 'react';
+import {FaShuffle, FaBackwardStep, FaForwardStep, FaPlay, FaPause, FaHeart} from 'react-icons/fa6';
+import {LuRepeat, LuRepeat1} from 'react-icons/lu';
 
-    useEffect(() => {
-        const fetchState = async () => {
-            const accessToken = await fetchAccessToken(sdk);
-            if (accessToken) {
-                const data = await fetchPlaybackState(accessToken);
-                if (data) {
-                    setShuffle(data.shuffle_state);
-                    setRepeat(data.repeat_state);
-                }
-            }
-        };
-        fetchState();
-    }, [sdk]);
+type RepeatMode = 'off' | 'context' | 'track';
 
-    const handleToggleShuffle = async () => {
-        const accessToken = await fetchAccessToken(sdk);
-        if (accessToken) {
-            await toggleShuffle(accessToken, !shuffle);
-            setShuffle(!shuffle);
-        }
-    };
+interface PlaybackControlsProps {
+    isPlaying: boolean;
+    isShuffle: boolean;
+    repeatMode: RepeatMode;
+    isLiked: boolean;
+    onTogglePlay: () => void;
+    onPreviousTrack: () => void;
+    onNextTrack: () => void;
+    onToggleShuffle: () => void;
+    onToggleRepeat: () => void;
+    onToggleLike: () => void;
+}
 
-    const handleToggleRepeat = async () => {
-        const accessToken = await fetchAccessToken(sdk);
-        if (accessToken) {
-            const newRepeatState = repeat === 'off' ? 'context' : repeat === 'context' ? 'track' : 'off';
-            await toggleRepeat(accessToken, newRepeatState);
-            setRepeat(newRepeatState);
-        }
-    };
-
-    const handlePlayPause = async () => {
-        if (!deviceId) {
-            console.error('No active device found');
-            return;
-        }
-        try {
-            if (isPlaying) {
-                await sdk.player.pausePlayback(deviceId);
-            } else {
-                await sdk.player.startResumePlayback(deviceId);
-            }
-        } catch (error) {
-            console.error('Error toggling playback:', error);
-        }
-    };
-
-    const handlePrevious = async () => {
-        if (!deviceId) {
-            console.error('No active device found');
-            return;
-        }
-        try {
-            await sdk.player.skipToPrevious(deviceId);
-        } catch (error) {
-            console.error('Error skipping to previous track:', error);
-        }
-    };
-
-    const handleNext = async () => {
-        console.log("handleNext");
-        if (!deviceId) {
-            console.error('No active device found');
-            return;
-        }
-        try {
-            await sdk.player.skipToNext(deviceId);
-        } catch (error) {
-            console.error('Error skipping to next track:', error);
-        }
-    };
-
+const PlaybackControls = ({
+                              isPlaying,
+                              isShuffle,
+                              repeatMode,
+                              isLiked,
+                              onTogglePlay,
+                              onPreviousTrack,
+                              onNextTrack,
+                              onToggleShuffle,
+                              onToggleRepeat,
+                              onToggleLike
+                          }: PlaybackControlsProps) => {
     return (
-        <div className="flex items-center justify-between w-full mt-4">
-            <button onClick={handleToggleShuffle} className={`p-2 ${shuffle ? 'text-green-500' : 'text-white'}`}>
-                <FaShuffle size={iconSize - 10}/>
+        <div className="flex items-center space-x-4">
+            <button
+                onClick={onToggleShuffle}
+                className={`p-2 rounded-full ${isShuffle ? 'text-green-500' : 'text-white'}`}
+            >
+                <FaShuffle size="20px"/>
+            </button>
+            <button onClick={onPreviousTrack} className="p-2 text-white">
+                <FaBackwardStep size="25px"/>
+            </button>
+            <button onClick={onTogglePlay} className="p-2 text-white">
+                {isPlaying ? <FaPause size="35px"/> : <FaPlay size="35px"/>}
+            </button>
+            <button onClick={onNextTrack} className="p-2 text-white">
+                <FaForwardStep size="25px"/>
             </button>
             <button
-                onClick={handlePrevious}
-                className="p-2 pl-0"
-                disabled={!deviceId}>
-                <FaBackwardStep size={iconSize - 5}/>
+                onClick={onToggleRepeat}
+                className={`p-2 rounded-full ${
+                    repeatMode !== 'off' ? 'text-green-500' : 'text-white'
+                }`}
+            >
+                {repeatMode === 'track' ? <LuRepeat1 size="25px"/> : <LuRepeat size="20px"/>}
             </button>
             <button
-                onClick={handlePlayPause}
-                className="p-2 "
-                disabled={!deviceId}>
-                {isPlaying ? <FaCirclePause color="white" size={iconSize + 15}/> :
-                    <FaCirclePlay color="white" size={iconSize + 15}/>}
-            </button>
-            <button
-                onClick={handleNext}
-                className="p-2 "
-                disabled={!deviceId}>
-                <FaForwardStep size={iconSize - 5}/>
-            </button>
-            <button onClick={handleToggleRepeat} className="p-2 text-white">
-                {repeat === 'off' && <FaRepeat size={iconSize - 15}/>}
-                {repeat === 'context' && <FaRepeat className="text-green-500" size={iconSize - 15}/>}
-                {repeat === 'track' &&
-                    <div className="flex">
-                        <FaRepeat className="text-green-500" size={iconSize - 15}/>
-                        <p className="text-green-500 font-bold">1</p>
-                    </div>
-                }
+                onClick={onToggleLike}
+                className={`p-2 rounded-full ${isLiked ? 'text-green-500' : 'text-white'}`}
+            >
+                <FaHeart/>
             </button>
         </div>
     );

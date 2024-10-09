@@ -1,59 +1,38 @@
 // src/hooks/useSpotifyAuth.ts
 
-import {useState, useEffect, useCallback} from 'react';
-import {initializeSpotify, authenticateSpotify, loginToSpotify} from '@/utils/spotifyService';
+import {useState, useEffect} from 'react';
 import {SpotifyApi} from '@spotify/web-api-ts-sdk';
 
 export const useSpotifyAuth = () => {
-    const [state, setState] = useState({
-        spotifyApi: null as SpotifyApi | null,
-        isAuthenticated: false,
-        isLoading: true,
-        error: null as Error | null
-    });
-
-    const initialize = useCallback(async () => {
-        try {
-            const api = await initializeSpotify(
-                process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_ID!,
-                process.env.NEXT_PUBLIC_SPOTIFY_REDIRECT_URI!
-            );
-            const authResult = await authenticateSpotify(api);
-            setState(prevState => ({
-                ...prevState,
-                spotifyApi: api,
-                isAuthenticated: authResult,
-                isLoading: false
-            }));
-        } catch (err) {
-            setState(prevState => ({
-                ...prevState,
-                error: err instanceof Error ? err : new Error('Failed to initialize Spotify'),
-                isLoading: false
-            }));
-        }
-    }, []);
+    const [spotifyApi, setSpotifyApi] = useState<SpotifyApi | null>(null);
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<Error | null>(null);
 
     useEffect(() => {
-        initialize();
-    }, [initialize]);
-
-    const login = useCallback(async () => {
-        if (state.spotifyApi) {
-            setState(prevState => ({...prevState, isLoading: true}));
+        const initializeSpotify = async () => {
             try {
-                await loginToSpotify(state.spotifyApi);
-                // The page will redirect to Spotify for authentication,
-                // so we don't need to update the state here
+                const api = SpotifyApi.withUserAuthorization(
+                    process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_ID!,
+                    process.env.NEXT_PUBLIC_REDIRECT_URI!,
+                    ['user-read-private', 'user-read-email', 'user-modify-playback-state', 'user-read-playback-state']
+                );
+                await api.authenticate();
+                setSpotifyApi(api);
+                setIsAuthenticated(true);
             } catch (err) {
-                setState(prevState => ({
-                    ...prevState,
-                    error: err instanceof Error ? err : new Error('Failed to authenticate with Spotify'),
-                    isLoading: false
-                }));
+                setError(err as Error);
+            } finally {
+                setIsLoading(false);
             }
-        }
-    }, [state.spotifyApi]);
+        };
 
-    return {...state, login};
+        initializeSpotify();
+    }, []);
+
+    const login = () => {
+        // Implement login logic if needed
+    };
+
+    return {spotifyApi, isAuthenticated, isLoading, error, login};
 };
