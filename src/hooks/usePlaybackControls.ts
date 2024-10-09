@@ -31,10 +31,10 @@ interface LikedTrackCache {
 }
 
 const INITIAL_RETRY_DELAY = 1000; // 1 second
-const MAX_RETRY_DELAY = 60000; // 1 minute
+const MAX_RETRY_DELAY = 15000; // 15 seconds
 const MAX_RETRIES = 5;
 const CACHE_EXPIRY = 5 * 60 * 1000; // 5 minutes
-const LONG_POLL_INTERVAL = 60000; // 60 seconds
+const LONG_POLL_INTERVAL = 15000; // 15 seconds
 const SHORT_POLL_INTERVAL = 1000; // 1 second
 const SHORT_POLL_DURATION = 5000; // 5 seconds
 

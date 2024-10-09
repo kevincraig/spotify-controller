@@ -13,6 +13,7 @@ export const initializeSpotify = async (clientId: string, redirectUri: string): 
             'user-library-modify'
         ]);
     }
+    
     return spotifyApi;
 };
 
