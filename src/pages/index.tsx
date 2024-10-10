@@ -1,39 +1,40 @@
 // src/pages/index.tsx
 
 import {useEffect} from 'react';
-import {useRouter} from 'next/router';
 import {useSpotifyAuth} from '@/hooks/useSpotifyAuth';
+import {clearAuthData} from "@/utils/authUtils";
 import NowPlaying from '@/components/NowPlaying';
 
 export default function Home() {
-    const {isAuthenticated, isLoading, login} = useSpotifyAuth();
-    const router = useRouter();
+    const {isAuthenticated, isLoading, error, login, getSpotifyApi} = useSpotifyAuth();
 
     useEffect(() => {
-        if (router.query.code) {
-            login();
+        if (error && error.message.includes("Insufficient client scope")) {
+            clearAuthData();
+            login(); // This will redirect the user to Spotify to re-authenticate with the new scope
         }
-    }, [router.query.code, login]);
+    }, [error, login]);
 
     if (isLoading) {
-        return <div>Loading...</div>;
+        return <div className="flex justify-center items-center h-screen">Loading...</div>;
     }
 
-    return (
-        <div className="flex justify-start p-4">
-            {isAuthenticated ? (
-                <NowPlaying/>
-            ) : (
-                <div className="flex flex-col items-center justify-center">
-                    <h1 className="text-4xl font-bold mb-8">Welcome to Spotify HiFi Client</h1>
-                    <button
-                        onClick={login}
-                        className="px-6 py-3 bg-green-500 text-white rounded-full font-bold hover:bg-green-600 transition duration-300"
-                    >
-                        Login with Spotify
-                    </button>
-                </div>
-            )}
-        </div>
-    );
-}
+    if (error) {
+        return <div className="text-red-500 text-center">Error: {error.message}</div>;
+    }
+
+    if (!isAuthenticated) {
+        return (
+            <div className="flex justify-center items-center h-screen">
+                <button
+                    onClick={login}
+                    className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded"
+                >
+                    Login to Spotify
+                </button>
+            </div>
+        );
+    }
+
+    return <NowPlaying getSpotifyApi={getSpotifyApi}/>;
+};

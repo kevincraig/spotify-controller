@@ -45,6 +45,7 @@ export const usePlaybackControls = (spotifyApi: SpotifyApi | null) => {
     const [deviceId, setDeviceId] = useState<string | null>(null);
     const [currentTrack, setCurrentTrack] = useState<TrackInfo | null>(null);
     const [lastPlayedTrack, setLastPlayedTrack] = useState<TrackInfo | null>(null);
+    const initialFetchDone = useRef(false);
     const [currentDevice, setCurrentDevice] = useState<DeviceInfo | null>(null);
     const [isLiked, setIsLiked] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -160,6 +161,27 @@ export const usePlaybackControls = (spotifyApi: SpotifyApi | null) => {
         }
     }, [spotifyApi, fetchTrackLikedStatus, fetchWithRetry]);
 
+    const fetchLastPlayedTrack = useCallback(async () => {
+        if (!spotifyApi) return;
+        try {
+            const recentTracks = await fetchWithRetry(() =>
+                spotifyApi.player.getRecentlyPlayedTracks(1)
+            );
+            if (recentTracks.items.length > 0) {
+                const mostRecentTrack = recentTracks.items[0].track;
+                const trackInfo = createTrackInfo(mostRecentTrack);
+                setLastPlayedTrack(trackInfo);
+                if (!currentTrack) {
+                    setCurrentTrack(trackInfo);
+                    fetchTrackLikedStatus(trackInfo.id);
+                }
+            }
+        } catch (error) {
+            const spotifyError = error as SpotifyError;
+            console.error('Failed to fetch recently played tracks', spotifyError.message);
+            setError('Failed to fetch recently played tracks. Please try again later.');
+        }
+    }, [spotifyApi, fetchWithRetry, currentTrack, fetchTrackLikedStatus]);
 
     const toggleLike = useCallback(async () => {
         if (!spotifyApi || !currentTrack) return;
@@ -261,6 +283,10 @@ export const usePlaybackControls = (spotifyApi: SpotifyApi | null) => {
 
     useEffect(() => {
         let intervalId: NodeJS.Timeout;
+        if (spotifyApi && !initialFetchDone.current) {
+            fetchLastPlayedTrack();
+            initialFetchDone.current = true;
+        }
 
         const startFetchingPlaybackState = () => {
             fetchPlaybackState();
