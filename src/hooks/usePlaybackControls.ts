@@ -242,7 +242,7 @@ export const usePlaybackControls = (spotifyApi: SpotifyApi | null) => {
                 }
             }
         });
-    }, [spotifyApi, isPlaying, handleControlAction]);
+    }, [handleControlAction, isPlaying, deviceId, spotifyApi]);
 
     useCallback(async () => {
         if (!spotifyApi) return;
@@ -305,7 +305,7 @@ export const usePlaybackControls = (spotifyApi: SpotifyApi | null) => {
                 clearTimeout(shortPollTimeoutRef.current);
             }
         };
-    }, [fetchPlaybackState, spotifyApi, pollInterval]);
+    }, [fetchPlaybackState, spotifyApi, pollInterval, fetchLastPlayedTrack]);
 
     return {
         isPlaying,

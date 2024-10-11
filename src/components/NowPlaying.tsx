@@ -114,9 +114,9 @@ const NowPlaying = ({getSpotifyApi}: NowPlayingProps) => {
                     <Image
                         src={logo}
                         alt="Spotify logo"
-                        width={60}
-                        height={30}
-                        style={{width: '40%', height: 'auto'}}
+                        width={120}
+                        height={60}
+                        style={{width: '20%', height: 'auto'}}
                     />
                     <h1 className="text-4xl font-bold my-2">{displayTrack.name}</h1>
                     <p className="text-3xl ">{displayTrack.artist}</p>
