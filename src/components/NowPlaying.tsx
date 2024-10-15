@@ -82,7 +82,12 @@ const NowPlaying = ({getSpotifyApi}: NowPlayingProps) => {
     const displayTrack = currentTrack || lastPlayedTrack;
 
     if (!displayTrack) {
-        return <div className="text-center py-4 text-white">No track information available</div>;
+        return (
+            <>
+                <div className="text-center py-4 text-white">No track information available</div>
+                <div className="text-center py-4 text-white">{process.env.NEXT_PUBLIC_SPOTIFY_REDIRECT_URI}</div>
+            </>
+        );
     }
 
     const handleControlAction = async (action: () => Promise<void>) => {
@@ -116,7 +121,7 @@ const NowPlaying = ({getSpotifyApi}: NowPlayingProps) => {
                         alt="Spotify logo"
                         width={120}
                         height={60}
-                        style={{width: '20%', height: 'auto'}}
+
                     />
                     <h1 className="text-4xl font-bold my-2">{displayTrack.name}</h1>
                     <p className="text-3xl ">{displayTrack.artist}</p>

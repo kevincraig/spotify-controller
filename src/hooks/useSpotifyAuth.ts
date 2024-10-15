@@ -10,7 +10,7 @@ const SCOPES = [
     'user-read-playback-state',
     'user-library-read',
     'user-library-modify',
-    'user-read-recently-played'  // Add this scope
+    'user-read-recently-played'
 ];
 
 export const useSpotifyAuth = () => {
@@ -21,11 +21,15 @@ export const useSpotifyAuth = () => {
 
     const initializeSpotify = useCallback(async () => {
         try {
-            const api = SpotifyApi.withUserAuthorization(
-                process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_ID!,
-                process.env.NEXT_PUBLIC_REDIRECT_URI!,
-                SCOPES
-            );
+            const clientId = process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_ID;
+            const redirectUri = process.env.NEXT_PUBLIC_SPOTIFY_REDIRECT_URI;
+
+            if (!clientId || !redirectUri) {
+                throw new Error('Missing Spotify client ID or redirect URI');
+            }
+            
+            const api = SpotifyApi.withUserAuthorization(clientId, redirectUri, SCOPES);
+            console.log('Redirect URL:', redirectUri);
             await api.authenticate();
             setSpotifyApi(api);
             setIsAuthenticated(true);

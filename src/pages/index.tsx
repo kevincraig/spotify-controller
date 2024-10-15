@@ -9,6 +9,9 @@ export default function Home() {
     const {isAuthenticated, isLoading, error, login, getSpotifyApi} = useSpotifyAuth();
 
     useEffect(() => {
+
+        // console.log('Spotify Client ID:', process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_ID);
+        // console.log('Redirect URI:', process.env.NEXT_PUBLIC_SPOTIFY_REDIRECT_URI);
         if (error && error.message.includes("Insufficient client scope")) {
             clearAuthData();
             login(); // This will redirect the user to Spotify to re-authenticate with the new scope

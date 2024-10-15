@@ -14,19 +14,16 @@ const AppBar = () => {
 
     return (
         <div className="flex items-center justify-between p-4 bg-gray-800 text-white h-12">
-            <div className="flex items-center">
+            <div>
                 <Image
                     src={gaugedLogo}
                     alt="Logo"
-                    width={120}
-                    height={96}
-                    style={{width: '4.5%', height: 'auto'}}
+                    width={50}
+                    height={50}
                 />
-
-
             </div>
-            <div className="flex items-center">
-                <span className="mr-4">{time.toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'})}</span>
+            <div className="justify-center">
+                <span>{time.toLocaleTimeString([], {hour: 'numeric', minute: '2-digit', hour12: true})}</span>
             </div>
             <div className="flex items-center">
                 <button onClick={() => router.push('/')} className="p-2 hover:bg-gray-700 rounded">
