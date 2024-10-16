@@ -40,13 +40,13 @@ const PlaybackControls = ({
                 <FaShuffle size="30px"/>
             </button>
             <button onClick={onPreviousTrack} className="p-2 text-white">
-                <FaBackwardStep size="35px"/>
+                <FaBackwardStep size="40px"/>
             </button>
             <button onClick={onTogglePlay} className="p-2 text-white">
-                {isPlaying ? <FaPause size="40px"/> : <FaPlay size="35px"/>}
+                {isPlaying ? <FaPause size="60px"/> : <FaPlay size="60px"/>}
             </button>
             <button onClick={onNextTrack} className="p-2 text-white">
-                <FaForwardStep size="35px"/>
+                <FaForwardStep size="40px"/>
             </button>
             <button
                 onClick={onToggleRepeat}
@@ -54,13 +54,13 @@ const PlaybackControls = ({
                     repeatMode !== 'off' ? 'text-green-500' : 'text-white'
                 }`}
             >
-                {repeatMode === 'track' ? <LuRepeat1 size="30px"/> : <LuRepeat size="30px"/>}
+                {repeatMode === 'track' ? <LuRepeat1 size="35px"/> : <LuRepeat size="35px"/>}
             </button>
             <button
                 onClick={onToggleLike}
                 className={`p-2 rounded-full ${isLiked ? 'text-green-500' : 'text-white'}`}
             >
-                <FaHeart size="30px"/>
+                <FaHeart size="36px"/>
             </button>
         </div>
     );

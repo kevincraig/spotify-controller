@@ -4,14 +4,13 @@ import {useEffect} from 'react';
 import {useSpotifyAuth} from '@/hooks/useSpotifyAuth';
 import {clearAuthData} from "@/utils/authUtils";
 import NowPlaying from '@/components/NowPlaying';
+import Playlists from "@/components/Playlists";
+import {SpotifyApi} from "@spotify/web-api-ts-sdk";
 
 export default function Home() {
     const {isAuthenticated, isLoading, error, login, getSpotifyApi} = useSpotifyAuth();
 
     useEffect(() => {
-
-        // console.log('Spotify Client ID:', process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_ID);
-        // console.log('Redirect URI:', process.env.NEXT_PUBLIC_SPOTIFY_REDIRECT_URI);
         if (error && error.message.includes("Insufficient client scope")) {
             clearAuthData();
             login(); // This will redirect the user to Spotify to re-authenticate with the new scope
@@ -39,5 +38,9 @@ export default function Home() {
         );
     }
 
-    return <NowPlaying getSpotifyApi={getSpotifyApi}/>;
-};
+    return (
+        <div>
+            <NowPlaying getSpotifyApi={getSpotifyApi}/>
+        </div>
+    );
+}

@@ -23,7 +23,7 @@ const AppBar = () => {
                 />
             </div>
             <div className="justify-center">
-                <span>{time.toLocaleTimeString([], {hour: 'numeric', minute: '2-digit', hour12: true})}</span>
+                <span className="font-bold text-3xl">{time.toLocaleTimeString([], {hour: 'numeric', minute: '2-digit', hour12: true})}</span>
             </div>
             <div className="flex items-center">
                 <button onClick={() => router.push('/')} className="p-2 hover:bg-gray-700 rounded">

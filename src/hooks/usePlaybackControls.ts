@@ -21,6 +21,7 @@ interface DeviceInfo {
 interface SpotifyError extends Error {
     status?: number;
     message: string;
+    response?: never;
 }
 
 interface LikedTrackCache {
@@ -28,6 +29,10 @@ interface LikedTrackCache {
         isLiked: boolean;
         timestamp: number;
     };
+}
+
+interface SaveTrackOptions {
+    ids: string[];
 }
 
 const INITIAL_RETRY_DELAY = 1000; // 1 second
@@ -86,7 +91,7 @@ export const usePlaybackControls = (spotifyApi: SpotifyApi | null) => {
         maxRetries: number = MAX_RETRIES
     ): Promise<T> => {
         try {
-            await wait(retryDelay.current); // Wait before making the request
+            await wait(retryDelay.current);
             const result = await fetchFunction();
             retryCount.current = 0;
             retryDelay.current = INITIAL_RETRY_DELAY;
@@ -183,18 +188,25 @@ export const usePlaybackControls = (spotifyApi: SpotifyApi | null) => {
         }
     }, [spotifyApi, fetchWithRetry, currentTrack, fetchTrackLikedStatus]);
 
+    const saveOrRemoveTracks = useCallback((ids: string[], action: 'save' | 'remove') => {
+        const method = action === 'save' ? 'saveTracks' : 'removeSavedTracks';
+        return (spotifyApi!.currentUser.tracks[method] as any)({ids} as SaveTrackOptions);
+    }, [spotifyApi]);
+
     const toggleLike = useCallback(async () => {
-        if (!spotifyApi || !currentTrack) return;
+        if (!spotifyApi || !currentTrack || !currentTrack.id) {
+            setError('No track is currently playing or track ID is missing.');
+            return;
+        }
+
+        console.log('Calling API with:', {
+            method: isLiked ? 'removeSavedTracks' : 'saveTracks',
+            trackId: currentTrack.id
+        });
         try {
-            if (isLiked) {
-                await fetchWithRetry(() =>
-                    spotifyApi.currentUser.tracks.removeSavedTracks([currentTrack.id])
-                );
-            } else {
-                await fetchWithRetry(() =>
-                    spotifyApi.currentUser.tracks.saveTracks([currentTrack.id])
-                );
-            }
+            await fetchWithRetry(() =>
+                saveOrRemoveTracks([currentTrack.id], isLiked ? 'remove' : 'save')
+            );
             const newIsLiked = !isLiked;
             setIsLiked(newIsLiked);
             likedTracksCache.current[currentTrack.id] = {
@@ -203,10 +215,11 @@ export const usePlaybackControls = (spotifyApi: SpotifyApi | null) => {
             };
         } catch (error) {
             const spotifyError = error as SpotifyError;
-            console.error('Failed to toggle like', spotifyError.message);
+            console.error('Failed to toggle like', spotifyError);
+            console.error('Error details:', spotifyError.response);
             setError('Failed to update like status. Please try again later.');
         }
-    }, [spotifyApi, currentTrack, isLiked, fetchWithRetry]);
+    }, [spotifyApi, currentTrack, isLiked, fetchWithRetry, saveOrRemoveTracks]);
 
     const startShortPolling = useCallback(() => {
         setPollInterval(SHORT_POLL_INTERVAL);
@@ -243,24 +256,6 @@ export const usePlaybackControls = (spotifyApi: SpotifyApi | null) => {
             }
         });
     }, [handleControlAction, isPlaying, deviceId, spotifyApi]);
-
-    useCallback(async () => {
-        if (!spotifyApi) return;
-        try {
-            const recentTracks = await spotifyApi.player.getRecentlyPlayedTracks(1);
-            if (recentTracks.items.length > 0) {
-                const mostRecentTrack = recentTracks.items[0].track;
-                const trackInfo = createTrackInfo(mostRecentTrack);
-                setLastPlayedTrack(trackInfo);
-                if (!currentTrack) {
-                    setCurrentTrack(trackInfo);
-                    fetchTrackLikedStatus(trackInfo.id);
-                }
-            }
-        } catch (error) {
-            console.error('Failed to fetch recently played tracks', error);
-        }
-    }, [spotifyApi, currentTrack, fetchTrackLikedStatus]);
 
     const previousTrack = useCallback(() => {
         return handleControlAction(() => spotifyApi!.player.skipToPrevious(deviceId!));

@@ -6,6 +6,8 @@ import PlaybackControls from './PlaybackControls';
 import {FaLaptop, FaMobileAlt, FaTabletAlt, FaDesktop, FaTv, FaCar, FaGamepad} from 'react-icons/fa';
 import {BiSolidSpeaker} from "react-icons/bi";
 import {SpotifyApi} from "@spotify/web-api-ts-sdk";
+import {router} from "next/client";
+import {FaBars} from "react-icons/fa6";
 
 interface NowPlayingProps {
     getSpotifyApi: () => SpotifyApi;
@@ -116,13 +118,20 @@ const NowPlaying = ({getSpotifyApi}: NowPlayingProps) => {
                     />
                 </div>
                 <div className="flex flex-col px-8">
-                    <Image
-                        src={logo}
-                        alt="Spotify logo"
-                        width={120}
-                        height={60}
+                    <div className="flex flex-row justify-between">
+                        <Image
+                            src={logo}
+                            alt="Spotify logo"
+                            width={120}
+                            height={60}
 
-                    />
+                        />
+                        <div className="flex items-center">
+                            <button onClick={() => router.push('/playlists')} className="p-2 hover:bg-gray-700 rounded">
+                                <FaBars className="w-6 h-6"/>
+                            </button>
+                        </div>
+                    </div>
                     <h1 className="text-4xl font-bold my-2">{displayTrack.name}</h1>
                     <p className="text-3xl ">{displayTrack.artist}</p>
                     <p className="text-2xl text-gray-200 mb-2">
