@@ -4,8 +4,6 @@ import {useEffect} from 'react';
 import {useSpotifyAuth} from '@/hooks/useSpotifyAuth';
 import {clearAuthData} from "@/utils/authUtils";
 import NowPlaying from '@/components/NowPlaying';
-import Playlists from "@/components/Playlists";
-import {SpotifyApi} from "@spotify/web-api-ts-sdk";
 
 export default function Home() {
     const {isAuthenticated, isLoading, error, login, getSpotifyApi} = useSpotifyAuth();
