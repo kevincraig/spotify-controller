@@ -13,17 +13,17 @@ const AppBar = () => {
     }, []);
 
     return (
-        <div className="flex items-center justify-between p-4 bg-gray-800 text-white h-12">
+        <div className="flex items-center justify-between p-4 bg-gray-800 text-white h-8">
             <div>
                 <Image
                     src={gaugedLogo}
                     alt="Logo"
-                    width={50}
-                    height={50}
+                    width={35}
+                    height={35}
                 />
             </div>
             <div className="justify-center">
-                <span className="font-bold text-3xl">{time.toLocaleTimeString([], {hour: 'numeric', minute: '2-digit', hour12: true})}</span>
+                <span className="font-bold text-2xl">{time.toLocaleTimeString([], {hour: 'numeric', minute: '2-digit', hour12: true})}</span>
             </div>
             <div className="flex items-center">
                 <button onClick={() => router.push('/')} className="p-2 hover:bg-gray-700 rounded">

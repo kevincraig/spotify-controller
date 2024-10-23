@@ -1,5 +1,5 @@
 import {useState, useCallback, useEffect, useRef} from 'react';
-import {SpotifyApi, Track, Episode} from '@spotify/web-api-ts-sdk';
+import {SpotifyApi, Track, Episode, Device} from '@spotify/web-api-ts-sdk';
 
 type RepeatMode = 'off' | 'context' | 'track';
 
@@ -12,11 +12,11 @@ interface TrackInfo {
     type: 'track' | 'episode';
 }
 
-interface DeviceInfo {
-    id: string | null;
-    name: string | null;
-    type: string | null;
-}
+// interface DeviceInfo {
+//     id: string | null;
+//     name: string | null;
+//     type: string | null;
+// }
 
 interface SpotifyError extends Error {
     status?: number;
@@ -31,10 +31,6 @@ interface LikedTrackCache {
     };
 }
 
-interface SaveTrackOptions {
-    ids: string[];
-}
-
 const INITIAL_RETRY_DELAY = 1000; // 1 second
 const MAX_RETRY_DELAY = 15000; // 15 seconds
 const MAX_RETRIES = 5;
@@ -44,6 +40,8 @@ const SHORT_POLL_INTERVAL = 1000; // 1 second
 const SHORT_POLL_DURATION = 5000; // 5 seconds
 
 export const usePlaybackControls = (spotifyApi: SpotifyApi | null) => {
+
+
     const [isPlaying, setIsPlaying] = useState(false);
     const [isShuffle, setIsShuffle] = useState(false);
     const [repeatMode, setRepeatMode] = useState<RepeatMode>('off');
@@ -51,7 +49,7 @@ export const usePlaybackControls = (spotifyApi: SpotifyApi | null) => {
     const [currentTrack, setCurrentTrack] = useState<TrackInfo | null>(null);
     const [lastPlayedTrack, setLastPlayedTrack] = useState<TrackInfo | null>(null);
     const initialFetchDone = useRef(false);
-    const [currentDevice, setCurrentDevice] = useState<DeviceInfo | null>(null);
+    const [currentDevice, setCurrentDevice] = useState<Device | null>(null);
     const [isLiked, setIsLiked] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const retryCount = useRef(0);
@@ -59,6 +57,8 @@ export const usePlaybackControls = (spotifyApi: SpotifyApi | null) => {
     const likedTracksCache = useRef<LikedTrackCache>({});
     const [pollInterval, setPollInterval] = useState(LONG_POLL_INTERVAL);
     const shortPollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const [currentTime, setCurrentTime] = useState(0);
+    const [duration, setDuration] = useState(0);
 
     const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -83,6 +83,28 @@ export const usePlaybackControls = (spotifyApi: SpotifyApi | null) => {
                 albumArt: item.images[0]?.url || '',
                 type: 'episode',
             };
+        }
+    };
+
+    const spotifyApiWrapper = async <T>(apiCall: () => Promise<T>): Promise<T> => {
+        try {
+            const response = await apiCall();
+            console.log('Raw API response:', response);
+            return response;
+        } catch (error) {
+            if (error instanceof Response) {
+                const text = await error.text();
+                console.error('Raw API error response:', text);
+                if (error.status === 429) {
+                    const retryAfter = error.headers.get('Retry-After');
+                    console.error(`Rate limited. Retry after ${retryAfter} seconds.`);
+                }
+                throw new Error(`API error: ${error.status} ${error.statusText}. Raw response: ${text}`);
+            } else if (error instanceof Error) {
+                console.error('Error in API call:', error.message);
+                console.error('Error stack:', error.stack);
+            }
+            throw error;
         }
     };
 
@@ -148,16 +170,16 @@ export const usePlaybackControls = (spotifyApi: SpotifyApi | null) => {
                 setIsShuffle(playbackState.shuffle_state);
                 setRepeatMode(playbackState.repeat_state as RepeatMode);
                 setDeviceId(playbackState.device.id);
-                setCurrentDevice({
-                    id: playbackState.device.id,
-                    name: playbackState.device.name,
-                    type: playbackState.device.type,
-                });
+                setCurrentDevice(playbackState.device);
+                setCurrentTime(playbackState.progress_ms / 1000);
+                setDuration(playbackState.item.duration_ms / 1000);
                 fetchTrackLikedStatus(trackInfo.id);
             } else {
                 setCurrentTrack(null);
                 setIsPlaying(false);
                 setCurrentDevice(null);
+                setCurrentTime(0);
+                setDuration(0);
             }
         } catch (error) {
             const spotifyError = error as SpotifyError;
@@ -188,23 +210,33 @@ export const usePlaybackControls = (spotifyApi: SpotifyApi | null) => {
         }
     }, [spotifyApi, fetchWithRetry, currentTrack, fetchTrackLikedStatus]);
 
-    const saveOrRemoveTracks = useCallback((ids: string[], action: 'save' | 'remove') => {
-        const method = action === 'save' ? 'saveTracks' : 'removeSavedTracks';
-        return (spotifyApi!.currentUser.tracks[method] as any)({ids} as SaveTrackOptions);
+    const saveOrRemoveTracks = useCallback((ids: string[], action: 'save' | 'remove'): Promise<void> => {
+        if (!spotifyApi) {
+            throw new Error('Spotify API is not initialized');
+        }
+
+        return spotifyApiWrapper(() => {
+            if (action === 'save') {
+                return spotifyApi.makeRequest("PUT", "me/tracks", {ids: ids});
+                //return spotifyApi.currentUser.tracks.saveTracks(ids);
+            } else {
+                return spotifyApi.makeRequest("DELETE", "me/tracks", {ids: ids});
+            }
+        });
     }, [spotifyApi]);
+
 
     const toggleLike = useCallback(async () => {
         if (!spotifyApi || !currentTrack || !currentTrack.id) {
             setError('No track is currently playing or track ID is missing.');
             return;
         }
-
         console.log('Calling API with:', {
             method: isLiked ? 'removeSavedTracks' : 'saveTracks',
             trackId: currentTrack.id
         });
         try {
-            await fetchWithRetry(() =>
+            await spotifyApiWrapper(() =>
                 saveOrRemoveTracks([currentTrack.id], isLiked ? 'remove' : 'save')
             );
             const newIsLiked = !isLiked;
@@ -214,12 +246,11 @@ export const usePlaybackControls = (spotifyApi: SpotifyApi | null) => {
                 timestamp: Date.now()
             };
         } catch (error) {
-            const spotifyError = error as SpotifyError;
-            console.error('Failed to toggle like', spotifyError);
-            console.error('Error details:', spotifyError.response);
+            console.error('Failed to toggle like', error);
             setError('Failed to update like status. Please try again later.');
         }
-    }, [spotifyApi, currentTrack, isLiked, fetchWithRetry, saveOrRemoveTracks]);
+    }, [spotifyApi, currentTrack, isLiked, saveOrRemoveTracks]);
+
 
     const startShortPolling = useCallback(() => {
         setPollInterval(SHORT_POLL_INTERVAL);
@@ -237,9 +268,19 @@ export const usePlaybackControls = (spotifyApi: SpotifyApi | null) => {
             startShortPolling();
             await fetchPlaybackState();
         } catch (error) {
-            const spotifyError = error as SpotifyError;
-            console.error('Failed to perform action', spotifyError.message);
-            setError('Failed to perform action. Please try again.');
+            console.error('Action error:', error);
+
+            let errorMessage = 'Failed to perform action. Please try again.';
+            if (error instanceof Error) {
+                console.error('Error name:', error.name);
+                console.error('Error message:', error.message);
+                if (error.message.startsWith('API error:')) {
+                    console.error('API error details:', error.message);
+                }
+                errorMessage += ' Error: ' + error.message;
+            }
+
+            setError(errorMessage);
         }
     }, [fetchPlaybackState, startShortPolling]);
 
@@ -258,12 +299,42 @@ export const usePlaybackControls = (spotifyApi: SpotifyApi | null) => {
     }, [handleControlAction, isPlaying, deviceId, spotifyApi]);
 
     const previousTrack = useCallback(() => {
-        return handleControlAction(() => spotifyApi!.player.skipToPrevious(deviceId!));
+        return handleControlAction(async () => {
+            if (!spotifyApi || !deviceId) {
+                throw new Error('Spotify API or device ID is not available');
+            }
+            console.log('Attempting to skip to previous track');
+            const response = await spotifyApiWrapper(() => spotifyApi.player.skipToPrevious(deviceId));
+            console.log('Skip to previous track response:', response);
+            // No need to process the response, as we're not expecting any particular data
+        });
     }, [handleControlAction, spotifyApi, deviceId]);
 
     const nextTrack = useCallback(() => {
-        return handleControlAction(() => spotifyApi!.player.skipToNext(deviceId!));
+        return handleControlAction(async () => {
+            if (!spotifyApi || !deviceId) {
+                throw new Error('Spotify API or device ID is not available');
+            }
+            console.log('Attempting to skip to next track');
+            const response = await spotifyApiWrapper(() => spotifyApi.player.skipToNext(deviceId));
+            console.log('Skip to next track response:', response);
+            // No need to process the response, as we're not expecting any particular data
+        });
     }, [handleControlAction, spotifyApi, deviceId]);
+
+    const seekToPosition = useCallback(async (position: number) => {
+        if (!spotifyApi || !deviceId) return;
+        try {
+            const positionMs = Math.floor(position * duration * 1000);
+            await spotifyApiWrapper(() =>
+                spotifyApi.player.seekToPosition(positionMs, deviceId)
+            );
+            setCurrentTime(position * duration);
+        } catch (error) {
+            console.error('Failed to seek to position', error);
+            setError('Failed to seek to position. Please try again later.');
+        }
+    }, [spotifyApi, deviceId, duration]);
 
     const toggleShuffle = useCallback(() => {
         return handleControlAction(() => spotifyApi!.player.togglePlaybackShuffle(!isShuffle));
@@ -285,7 +356,14 @@ export const usePlaybackControls = (spotifyApi: SpotifyApi | null) => {
 
         const startFetchingPlaybackState = () => {
             fetchPlaybackState();
-            intervalId = setInterval(fetchPlaybackState, pollInterval);
+            intervalId = setInterval(() => {
+                fetchPlaybackState().catch(error => {
+                    if (error.message.includes('rate limits')) {
+                        clearInterval(intervalId);
+                        setTimeout(startFetchingPlaybackState, 30000); // Wait for 30 seconds before retrying
+                    }
+                });
+            }, pollInterval);
         };
 
         if (spotifyApi) {
@@ -318,5 +396,8 @@ export const usePlaybackControls = (spotifyApi: SpotifyApi | null) => {
         isLiked,
         toggleLike,
         error,
+        currentTime,
+        duration,
+        seekToPosition,
     };
 };
