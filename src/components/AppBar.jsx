@@ -18,18 +18,18 @@ const AppBar = () => {
                 <Image
                     src={gaugedLogo}
                     alt="Logo"
-                    width={35}
-                    height={35}
+                    width={30}
+                    height={30}
                 />
             </div>
             <div className="justify-center">
                 <span className="font-bold text-2xl">{time.toLocaleTimeString([], {hour: 'numeric', minute: '2-digit', hour12: true})}</span>
             </div>
-            <div className="flex items-center">
-                <button onClick={() => router.push('/')} className="p-2 hover:bg-gray-700 rounded">
-                    <FaBars className="w-6 h-6"/>
-                </button>
-            </div>
+            {/*<div className="flex items-center">*/}
+            {/*    <button onClick={() => router.push('/')} className="p-2 hover:bg-gray-700 rounded">*/}
+            {/*        <FaBars className="w-6 h-6"/>*/}
+            {/*    </button>*/}
+            {/*</div>*/}
         </div>
     );
 };
